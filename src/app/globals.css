@@ -1,0 +1,38 @@
+/* Estilos globales para la aplicación */
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Estilos para Leaflet */
+.leaflet-container {
+  height: 100%;
+  width: 100%;
+}
+
+/* Asegurar que el mapa se muestre correctamente en dispositivos móviles */
+.leaflet-control-container {
+  font-size: 14px;
+}
+
+/* Optimización para dispositivos táctiles */
+@media (max-width: 768px) {
+  .leaflet-control-zoom {
+    display: none;
+  }
+  
+  .leaflet-control-attribution {
+    font-size: 10px;
+  }
+}
+
+/* Evitar problemas con el viewport en móviles */
+.leaflet-container {
+  touch-action: pan-y;
+}

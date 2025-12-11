@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#3b82f6">
+    <title>GPS Mapa - OpenStreetMap</title>
+    <meta name="description" content="Aplicación de mapa con GPS para dispositivos móviles usando OpenStreetMap">
+    
+    <!-- CSS de Leaflet -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    
+    <!-- Estilos CSS -->
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+
+    <!-- Mapa fullscreen -->
+    <div id="map" class="fullscreen-map"></div>
+
+    <!-- Botón flotante de GPS -->
+    <button id="floatingGpsBtn" class="floating-btn gps-btn" title="Obtener mi ubicación">
+        <span class="floating-btn-icon">📍</span>
+    </button>
+
+    <!-- Barra de navegación inferior para rutas -->
+    <div id="routePanel" class="bottom-navigation-bar" style="display: none;">
+        <div class="route-info">
+            <div class="route-stats">
+                <div class="stat-item">
+                    <span class="stat-label">Distancia:</span>
+                    <span id="routeDistance" class="stat-value">--</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Tiempo:</span>
+                    <span id="routeTime" class="stat-value">--</span>
+                </div>
+            </div>
+        </div>
+        <div class="route-actions">
+            <button id="clearRouteBtn" class="bottom-nav-btn">
+                <span class="btn-icon">🗑️</span>
+                <span class="btn-text">Limpiar</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Indicadores flotantes -->
+    <div class="floating-indicators">
+        <span id="deviceBadge" class="floating-badge badge-secondary">💻 Escritorio</span>
+        <span id="gpsBadge" class="floating-badge badge-danger">❌ GPS Inactivo</span>
+    </div>
+
+    <!-- Modal de autenticación -->
+    <div id="authModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="authModalTitle">🔐 Iniciar Sesión</h3>
+                <button id="closeAuthModalBtn" class="modal-close">×</button>
+            </div>
+            <div class="modal-body">
+                <form id="authForm">
+                    <!-- Formulario de inicio de sesión -->
+                    <div id="loginForm" class="auth-form">
+                        <div class="form-group">
+                            <label for="loginIdentifier">Email o Teléfono</label>
+                            <input type="text" id="loginIdentifier" name="loginIdentifier" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="loginPassword">Contraseña</label>
+                            <input type="password" id="loginPassword" name="loginPassword" required>
+                        </div>
+                    </div>
+                    
+                    <!-- Formulario de registro -->
+                    <div id="registerForm" class="auth-form" style="display: none;">
+                        <div class="form-group">
+                            <label for="registerUsername">Nombre de Usuario</label>
+                            <input type="text" id="registerUsername" name="registerUsername" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="registerPhone">Teléfono de Cuba</label>
+                            <input type="tel" id="registerPhone" name="registerPhone" placeholder="+53 5xxxxxxx" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="registerPassword">Contraseña</label>
+                            <input type="password" id="registerPassword" name="registerPassword" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="confirmPassword">Confirmar Contraseña</label>
+                            <input type="password" id="confirmPassword" name="confirmPassword" required>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button id="switchToRegisterBtn" class="btn btn-secondary">
+                    <span class="btn-text">Registrarse</span>
+                </button>
+                <button id="switchToLoginBtn" class="btn btn-secondary" style="display: none;">
+                    <span class="btn-text">Iniciar Sesión</span>
+                </button>
+                <button id="submitAuthBtn" class="btn btn-primary">
+                    <span class="btn-text">Iniciar Sesión</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para confirmar destino -->
+    <div id="destinationModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>🎯 Definir Destino</h3>
+                <button id="closeModalBtn" class="modal-close">×</button>
+            </div>
+            <div class="modal-body">
+                <p>¿Quieres definir este punto como tu destino y generar una ruta para llegar?</p>
+                <div class="destination-coords">
+                    <small>
+                        Lat: <span id="destLat">--</span>, Lng: <span id="destLng">--</span>
+                    </small>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="cancelDestinationBtn" class="btn btn-secondary">
+                    Cancelar
+                </button>
+                <button id="publishAdBtn" class="btn btn-warning">
+                    <span class="btn-icon">📢</span>
+                    Publicar Anuncio
+                </button>
+                <button id="confirmDestinationBtn" class="btn btn-primary">
+                    <span class="btn-icon">🧭</span>
+                    Generar Ruta
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para crear anuncio -->
+    <div id="adModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>📢 Publicar Anuncio</h3>
+                <button id="closeAdModalBtn" class="modal-close">×</button>
+            </div>
+            <div class="modal-body">
+                <form id="adForm">
+                    <div class="form-group">
+                        <label for="adTitle">Título del anuncio</label>
+                        <input type="text" id="adTitle" name="title" required maxlength="100">
+                        <small>Máximo 100 caracteres</small>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="adDescription">Descripción</label>
+                        <textarea id="adDescription" name="description" rows="4" maxlength="500"></textarea>
+                        <small>Máximo 500 caracteres</small>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="adPrice">Precio (opcional)</label>
+                        <input type="number" id="adPrice" name="price" step="0.01" min="0" placeholder="0.00">
+                        <small>Deja en blanco si no aplica</small>
+                    </div>
+                    
+                    <div class="ad-location-info">
+                        <small><strong>Ubicación:</strong> <span id="adLocationCoords">--</span></small>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button id="cancelAdBtn" class="btn btn-secondary">
+                    Cancelar
+                </button>
+                <button id="saveAdBtn" class="btn btn-success">
+                    <span class="btn-icon">💾</span>
+                    Guardar Anuncio
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para ver anuncio -->
+    <div id="viewAdModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>📢 Detalles del Anuncio</h3>
+                <button id="closeViewAdModalBtn" class="modal-close">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="ad-details">
+                    <h4 id="viewAdTitle" class="ad-title">--</h4>
+                    <div class="ad-info-grid">
+                        <div class="ad-info-item">
+                            <span class="ad-info-label">Publicado por:</span>
+                            <p id="viewAdUser" class="ad-user">--</p>
+                        </div>
+                        <div class="ad-info-item">
+                            <span class="ad-info-label">Descripción:</span>
+                            <p id="viewAdDescription" class="ad-description">--</p>
+                        </div>
+                        <div class="ad-info-item">
+                            <span class="ad-info-label">Precio:</span>
+                            <p id="viewAdPrice" class="ad-price">--</p>
+                        </div>
+                        <div class="ad-info-item">
+                            <span class="ad-info-label">Ubicación:</span>
+                            <p id="viewAdLocation" class="ad-location">--</p>
+                        </div>
+                        <div class="ad-info-item">
+                            <span class="ad-info-label">Publicado:</span>
+                            <p id="viewAdDate" class="ad-date">--</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="closeViewAdBtn" class="btn btn-primary">
+                    Cerrar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mensajes de error flotantes -->
+    <div id="errorMessage" class="floating-error" style="display: none;">
+        <p id="errorText"></p>
+        <p id="mobileErrorHint" class="mobile-hint" style="display: none;">
+            Para usar esta app, ve a Configuración → Permisos → Ubicación y permite el acceso.
+        </p>
+    </div>
+
+    <!-- JavaScript -->
+    <script src="storage.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>

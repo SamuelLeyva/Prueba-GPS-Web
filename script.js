@@ -14,6 +14,7 @@ $(document).ready(function() {
     let adMarkers = []; // Array para marcadores de anuncios
     let currentUser = null; // Usuario autenticado
     let isLoginMode = true; // Modo actual: login o register
+    let isRealRoute = false; // Para saber si la ruta es por calles (true) o línea recta (false)
 
     // Inicialización
     initApp();
@@ -247,6 +248,12 @@ $(document).ready(function() {
         permissionGranted = true;
         updateGPSBadge();
         hideError();
+        
+        // En móvil, iniciar seguimiento automáticamente al obtener ubicación
+        if (isMobile && !isTracking) {
+            startTracking();
+            $('#floatingGpsBtn').addClass('tracking-active');
+        }
         
         // Mostrar botón flotante de GPS (ya está visible)
         $('#floatingGpsBtn').show();
@@ -835,6 +842,9 @@ $(document).ready(function() {
             return;
         }
         
+        // Establecer que esta es una ruta real por calles
+        isRealRoute = true;
+        
         // Determinar perfil de ruta según el dispositivo
         const profile = isMobile ? 'foot' : 'car';
         
@@ -985,6 +995,9 @@ $(document).ready(function() {
             console.error('Faltan coordenadas para crear ruta');
             return;
         }
+        
+        // Establecer que esta es una ruta en línea recta
+        isRealRoute = false;
 
         if (routeLayer) {
             map.removeLayer(routeLayer);
@@ -1082,6 +1095,7 @@ $(document).ready(function() {
         }
         
         destinationLocation = null;
+        isRealRoute = false; // Resetear tipo de ruta
         closeRoutePanel();
     }
 
@@ -1188,7 +1202,18 @@ $(document).ready(function() {
             currentLocation.lat, currentLocation.lng,
             destinationLocation.lat, destinationLocation.lng
         );
-        updateRouteInfo(distance);
+        
+        // Usar la función correcta según el tipo de ruta
+        if (isRealRoute) {
+            // Para rutas por calles, estimar tiempo basado en velocidad peatonal
+            const speedKmh = 5; // velocidad promedio al caminar
+            const timeHours = distance / speedKmh;
+            const timeMinutes = Math.round(timeHours * 60);
+            updateRealRouteInfo(distance * 1000, timeMinutes * 60); // convertir a metros y segundos
+        } else {
+            // Para rutas en línea recta
+            updateRouteInfo(distance);
+        }
     }
 
     // Detener seguimiento

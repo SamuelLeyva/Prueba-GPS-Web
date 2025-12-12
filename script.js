@@ -43,10 +43,17 @@ $(document).ready(function() {
         // Iniciar mapa con ubicación por defecto inmediatamente
         initializeDefaultMap();
         
-        // Retrasar la solicitud de permiso para evitar la violación
-        setTimeout(() => {
-            requestLocationPermissionNative();
-        }, 1000);
+        // SOLO solicitar permiso de ubicación en dispositivos móviles
+        if (isMobile) {
+            // Retrasar la solicitud de permiso para evitar la violación
+            setTimeout(() => {
+                requestLocationPermissionNative();
+            }, 1000);
+        } else {
+            // En escritorio, no solicitar ubicación automáticamente
+            console.log('Modo escritorio detectado - no se solicitará ubicación automáticamente');
+            $('#floatingGpsBtn').hide(); // Ocultar botón GPS en escritorio
+        }
     }
 
     // Solicitar permiso de ubicación de forma nativa
@@ -60,7 +67,7 @@ $(document).ready(function() {
 
         const options = {
             enableHighAccuracy: true,
-            timeout: 10000,
+            timeout: 15000, // Aumentar timeout para Cuba
             maximumAge: 0
         };
 
@@ -72,8 +79,11 @@ $(document).ready(function() {
             },
             function(error) {
                 handleLocationError(error);
-                // Iniciar mapa con ubicación por defecto aunque no se tenga permiso
-                initializeDefaultMap();
+                // Si hay error de permiso, mostrar mapa por defecto
+                if (error.code === error.PERMISSION_DENIED) {
+                    console.log('Permiso denegado, usando mapa por defecto');
+                    initializeDefaultMap();
+                }
             },
             options
         );
@@ -81,8 +91,20 @@ $(document).ready(function() {
 
     // Configurar manejadores de eventos
     function setupEventHandlers() {
-        // Botón flotante de GPS
-        $('#floatingGpsBtn').on('click', getCurrentLocation);
+        // Botón flotante de GPS - solo funciona en móviles
+        $('#floatingGpsBtn').on('click', function() {
+            if (!isMobile) {
+                return; // No hacer nada en escritorio
+            }
+            
+            if (isTracking) {
+                stopTracking();
+                $(this).removeClass('tracking-active');
+            } else {
+                startTracking();
+                $(this).addClass('tracking-active');
+            }
+        });
         
         // Panel de ruta
         $('#clearRouteBtn').on('click', clearRoute);
@@ -169,8 +191,13 @@ $(document).ready(function() {
         }
     }
 
-    // Obtener ubicación actual
+    // Obtener ubicación actual - solo funciona en móviles
     function getCurrentLocation() {
+        if (!isMobile) {
+            console.log('Función de ubicación no disponible en escritorio');
+            return;
+        }
+        
         const $btn = $('#floatingGpsBtn');
         
         if (!navigator.geolocation) {
@@ -221,9 +248,6 @@ $(document).ready(function() {
         updateGPSBadge();
         hideError();
         
-        // No iniciar seguimiento automáticamente para evitar problemas
-        // El usuario iniciará el seguimiento manualmente con el botón GPS
-        
         // Mostrar botón flotante de GPS (ya está visible)
         $('#floatingGpsBtn').show();
         
@@ -251,6 +275,9 @@ $(document).ready(function() {
                 break;
             case error.TIMEOUT:
                 errorMessage = 'Tiempo de espera agotado al obtener la ubicación';
+                break;
+            default:
+                errorMessage = 'Error de geolocalización: ' + error.message;
                 break;
         }
         
@@ -397,19 +424,42 @@ $(document).ready(function() {
 
     // Manejar clic en el mapa
     function handleMapClick(latlng) {
+        // En escritorio, no requerir ubicación actual para publicar anuncios
+        if (!isMobile) {
+            // En escritorio, solo permitir publicar anuncios
+            destinationLocation = {
+                lat: latlng.lat,
+                lng: latlng.lng
+            };
+            
+            // Mostrar coordenadas
+            $('#destLat').text(latlng.lat.toFixed(6));
+            $('#destLng').text(latlng.lng.toFixed(6));
+            
+            // Ocultar botón de generar ruta y mostrar solo publicar anuncio
+            $('#confirmDestinationBtn').hide();
+            $('#publishAdBtn').show();
+            $('#destinationModal').show();
+            return;
+        }
+        
+        // En móvil, sí requerir ubicación actual para generar rutas
         if (!currentLocation) {
             showError('Primero obtén tu ubicación actual');
             return;
         }
 
+        // En móvil, mostrar ambas opciones (generar ruta y publicar anuncio)
         destinationLocation = {
             lat: latlng.lat,
             lng: latlng.lng
         };
 
-        // Mostrar modal con coordenadas
+        // Mostrar modal con coordenadas y ambos botones
         $('#destLat').text(latlng.lat.toFixed(6));
         $('#destLng').text(latlng.lng.toFixed(6));
+        $('#confirmDestinationBtn').show(); // Mostrar botón de generar ruta en móvil
+        $('#publishAdBtn').show();
         $('#destinationModal').show();
     }
 
@@ -426,6 +476,12 @@ $(document).ready(function() {
 
     // Confirmar destino
     function confirmDestination() {
+        // Solo permitir generar rutas en móviles
+        if (!isMobile) {
+            console.log('Generación de rutas no disponible en escritorio');
+            return;
+        }
+        
         if (!destinationLocation || !currentLocation) {
             closeModal();
             return;
@@ -720,6 +776,12 @@ $(document).ready(function() {
 
     // Crear marcador de destino
     function createDestinationMarker() {
+        // Solo permitir crear marcadores de destino en móviles
+        if (!isMobile) {
+            console.log('Creación de marcadores de destino no disponible en escritorio');
+            return;
+        }
+        
         if (!destinationLocation) {
             console.error('No hay destino definido');
             return;
@@ -751,16 +813,28 @@ $(document).ready(function() {
         destinationMarker.bindPopup(popupContent);
     }
 
-    // Calcular ruta
+    // Calcular ruta - solo funciona en móviles
     function calculateRoute() {
+        // Solo permitir calcular rutas en móviles
+        if (!isMobile) {
+            console.log('Cálculo de rutas no disponible en escritorio');
+            return;
+        }
+        
         if (!currentLocation || !destinationLocation) return;
 
         // Usar OpenRouteService API para ruta real por calles
         getRealRoute();
     }
 
-    // Obtener ruta real usando OSRM API (completamente gratuito, sin CORS issues)
+    // Obtener ruta real usando OSRM API (completamente gratuito, sin CORS issues) - solo móviles
     function getRealRoute() {
+        // Solo permitir obtener rutas reales en móviles
+        if (!isMobile) {
+            console.log('Obtención de rutas reales no disponible en escritorio');
+            return;
+        }
+        
         // Determinar perfil de ruta según el dispositivo
         const profile = isMobile ? 'foot' : 'car';
         
@@ -1029,8 +1103,13 @@ $(document).ready(function() {
         $('body').removeClass('has-bottom-nav has-bottom-nav-mobile');
     }
 
-    // Iniciar seguimiento
+    // Iniciar seguimiento - solo funciona en móviles
     function startTracking() {
+        if (!isMobile) {
+            console.log('Seguimiento GPS no disponible en escritorio');
+            return;
+        }
+        
         if (!navigator.geolocation) {
             showError('Tu navegador no soporta geolocalización');
             return;
@@ -1057,7 +1136,7 @@ $(document).ready(function() {
                 currentLocation = location;
                 
                 if (map) {
-                    map.setView([location.lat, location.lng], 15);
+                    // NO centrar el mapa automáticamente - solo actualizar el marcador
                     if (currentMarker) {
                         currentMarker.setLatLng([location.lat, location.lng]);
                         
@@ -1114,12 +1193,17 @@ $(document).ready(function() {
 
     // Detener seguimiento
     function stopTracking() {
-        isTracking = false;
+        if (!isMobile) {
+            console.log('Seguimiento GPS no disponible en escritorio');
+            return;
+        }
         
         if (watchId !== null) {
             navigator.geolocation.clearWatch(watchId);
             watchId = null;
         }
+        isTracking = false;
+        updateGPSBadge();
     }
 
     // Mostrar error

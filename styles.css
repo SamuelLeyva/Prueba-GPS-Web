@@ -64,6 +64,17 @@ body.has-bottom-nav-mobile .fullscreen-map {
     box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
 }
 
+.floating-btn.tracking-active {
+    background: #10b981;
+    color: white;
+    border-color: #059669;
+}
+
+.floating-btn.tracking-active:hover {
+    background: #059669;
+    border-color: #047857;
+}
+
 .floating-btn-icon {
     font-size: 24px;
 }

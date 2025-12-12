@@ -528,6 +528,21 @@ body.has-bottom-nav-mobile .fullscreen-map {
     transform: translateY(-1px);
 }
 
+.btn:disabled,
+.btn.disabled {
+    background: #9ca3af !important;
+    color: #6b7280 !important;
+    cursor: not-allowed !important;
+    transform: none !important;
+    opacity: 0.6 !important;
+}
+
+.btn:disabled:hover,
+.btn.disabled:hover {
+    background: #9ca3af !important;
+    transform: none !important;
+}
+
 .btn-icon {
     font-size: 1.2rem;
 }

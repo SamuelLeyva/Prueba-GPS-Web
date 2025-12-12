@@ -255,6 +255,12 @@ $(document).ready(function() {
             $('#floatingGpsBtn').addClass('tracking-active');
         }
         
+        // Actualizar estado del botón de generar ruta si el modal está abierto
+        if ($('#destinationModal').is(':visible') && isMobile) {
+            $('#confirmDestinationBtn').prop('disabled', false).removeClass('disabled');
+            $('#confirmDestinationBtn').html('🧭 <span class="btn-text">Generar Ruta</span>');
+        }
+        
         // Mostrar botón flotante de GPS (ya está visible)
         $('#floatingGpsBtn').show();
         
@@ -450,22 +456,28 @@ $(document).ready(function() {
             return;
         }
         
-        // En móvil, sí requerir ubicación actual para generar rutas
-        if (!currentLocation) {
-            showError('Primero obtén tu ubicación actual');
-            return;
-        }
-
-        // En móvil, mostrar ambas opciones (generar ruta y publicar anuncio)
+        // En móvil, permitir publicar anuncios sin ubicación
         destinationLocation = {
             lat: latlng.lat,
             lng: latlng.lng
         };
-
-        // Mostrar modal con coordenadas y ambos botones
+        
+        // Mostrar coordenadas
         $('#destLat').text(latlng.lat.toFixed(6));
         $('#destLng').text(latlng.lng.toFixed(6));
-        $('#confirmDestinationBtn').show(); // Mostrar botón de generar ruta en móvil
+        
+        // Verificar si hay ubicación actual para decidir estado del botón de ruta
+        if (!currentLocation) {
+            // Sin ubicación GPS: desactivar botón de generar ruta
+            $('#confirmDestinationBtn').prop('disabled', true).addClass('disabled');
+            $('#confirmDestinationBtn').html('🧭 <span class="btn-text">Generar Ruta (GPS Requerido)</span>');
+        } else {
+            // Con ubicación GPS: activar botón de generar ruta
+            $('#confirmDestinationBtn').prop('disabled', false).removeClass('disabled');
+            $('#confirmDestinationBtn').html('🧭 <span class="btn-text">Generar Ruta</span>');
+        }
+        
+        // Siempre mostrar botón de publicar anuncio
         $('#publishAdBtn').show();
         $('#destinationModal').show();
     }
@@ -869,14 +881,20 @@ $(document).ready(function() {
                 if (response && response.routes && response.routes.length > 0) {
                     drawOSRMRoute(response);
                 } else {
-                    console.warn('No se encontró ruta, usando línea recta');
-                    createDirectRoute();
+                    console.warn('No se encontró ruta por calles, intentando de nuevo...');
+                    // Reintentar una vez más antes de dar error
+                    setTimeout(() => {
+                        getRealRoute();
+                    }, 2000);
                 }
             },
             error: function(xhr, status, error) {
                 console.warn('Error en API de rutas:', error);
-                console.log('Usando línea recta como alternativa');
-                createDirectRoute();
+                console.log('Reintentando obtener ruta por calles...');
+                // Reintentar una vez más antes de dar error
+                setTimeout(() => {
+                    getRealRoute();
+                }, 2000);
             }
         });
     }
@@ -989,48 +1007,6 @@ $(document).ready(function() {
         $('#routeInfo').show();
     }
 
-    // Crear ruta directa (línea recta)
-    function createDirectRoute() {
-        if (!currentLocation || !destinationLocation) {
-            console.error('Faltan coordenadas para crear ruta');
-            return;
-        }
-        
-        // Establecer que esta es una ruta en línea recta
-        isRealRoute = false;
-
-        if (routeLayer) {
-            map.removeLayer(routeLayer);
-        }
-
-        const routeCoordinates = [
-            [currentLocation.lat, currentLocation.lng],
-            [destinationLocation.lat, destinationLocation.lng]
-        ];
-
-        routeLayer = L.polyline(routeCoordinates, {
-            color: '#3b82f6',
-            weight: 4,
-            opacity: 0.7,
-            dashArray: '10, 10'
-        }).addTo(map);
-
-        // Calcular distancia aproximada
-        const distance = calculateDistance(
-            currentLocation.lat, currentLocation.lng,
-            destinationLocation.lat, destinationLocation.lng
-        );
-
-        // Actualizar información de ruta
-        updateRouteInfo(distance);
-        
-        // Ajustar vista para mostrar ruta completa
-        if (currentMarker && destinationMarker) {
-            const group = new L.featureGroup([currentMarker, destinationMarker, routeLayer]);
-            map.fitBounds(group.getBounds().pad(0.1));
-        }
-    }
-
     // Calcular distancia entre dos puntos
     function calculateDistance(lat1, lon1, lat2, lon2) {
         const R = 6371; // Radio de la Tierra en km
@@ -1046,42 +1022,6 @@ $(document).ready(function() {
     }
 
     // Actualizar información de ruta
-    function updateRouteInfo(distanceKm) {
-        showRoutePanel();
-        
-        const distance = distanceKm < 1 ? 
-            (distanceKm * 1000).toFixed(0) + ' m' : 
-            distanceKm.toFixed(2) + ' km';
-        
-        // Tiempo estimado (asumiendo 5 km/h para caminar, 30 km/h para coche)
-        const speedKmh = isMobile ? 5 : 30; // Velocidad promedio
-        const timeHours = distanceKm / speedKmh;
-        const timeMinutes = Math.round(timeHours * 60);
-        
-        let timeText;
-        if (timeMinutes < 60) {
-            timeText = timeMinutes + ' min';
-        } else {
-            const hours = Math.floor(timeMinutes / 60);
-            const minutes = timeMinutes % 60;
-            timeText = hours + 'h ' + minutes + 'min';
-        }
-
-        // Velocidad promedio
-        const speedText = speedKmh.toFixed(1) + ' km/h';
-        
-        // Llegada estimada
-        const now = new Date();
-        const arrivalTime = new Date(now.getTime() + (timeHours * 60 * 60 * 1000));
-        const arrivalText = arrivalTime.toLocaleTimeString();
-
-        $('#routeDistance').text(distance);
-        $('#routeTime').text(timeText);
-        // Campos eliminados: velocidad y llegada
-        // $('#routeSpeed').text(speedText);
-        // $('#routeETA').text(arrivalText);
-    }
-
     // Limpiar ruta
     function clearRoute() {
         if (routeLayer) {
@@ -1197,23 +1137,17 @@ $(document).ready(function() {
             routeLayer.setLatLngs(routeCoordinates);
         }
 
-        // Recalcular distancia y tiempo
+        // Recalcular distancia y tiempo - solo para rutas por calles
         const distance = calculateDistance(
             currentLocation.lat, currentLocation.lng,
             destinationLocation.lat, destinationLocation.lng
         );
         
-        // Usar la función correcta según el tipo de ruta
-        if (isRealRoute) {
-            // Para rutas por calles, estimar tiempo basado en velocidad peatonal
-            const speedKmh = 5; // velocidad promedio al caminar
-            const timeHours = distance / speedKmh;
-            const timeMinutes = Math.round(timeHours * 60);
-            updateRealRouteInfo(distance * 1000, timeMinutes * 60); // convertir a metros y segundos
-        } else {
-            // Para rutas en línea recta
-            updateRouteInfo(distance);
-        }
+        // Para rutas por calles, estimar tiempo basado en velocidad peatonal
+        const speedKmh = 5; // velocidad promedio al caminar
+        const timeHours = distance / speedKmh;
+        const timeMinutes = Math.round(timeHours * 60);
+        updateRealRouteInfo(distance * 1000, timeMinutes * 60); // convertir a metros y segundos
     }
 
     // Detener seguimiento

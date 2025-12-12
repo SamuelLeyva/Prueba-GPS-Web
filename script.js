@@ -221,9 +221,8 @@ $(document).ready(function() {
         updateGPSBadge();
         hideError();
         
-        // No iniciar seguimiento automáticamente para evitar violación
-        // El seguimiento se iniciará cuando el usuario haga clic en el botón GPS
-        // startTracking();
+        // No iniciar seguimiento automáticamente para evitar problemas
+        // El usuario iniciará el seguimiento manualmente con el botón GPS
         
         // Mostrar botón flotante de GPS (ya está visible)
         $('#floatingGpsBtn').show();
@@ -263,10 +262,10 @@ $(document).ready(function() {
     function initializeDefaultMap() {
         console.log('Iniciando mapa con ubicación por defecto');
         
-        // Ubicación por defecto (Madrid, España)
+        // Ubicación por defecto (La Habana, Cuba)
         const defaultLocation = {
-            lat: 40.4168,
-            lng: -3.7038
+            lat: 23.1136, // La Habana
+            lng: -82.3666
         };
 
         // Crear mapa si no existe
@@ -274,10 +273,17 @@ $(document).ready(function() {
             map = L.map('map', {
                 center: [defaultLocation.lat, defaultLocation.lng],
                 zoom: 13,
-                zoomControl: !isMobile
+                zoomControl: !isMobile,
+                // Desactivar arrastre del mapa para que el usuario controle libremente
+                dragging: true,
+                touchZoom: true,
+                scrollWheelZoom: true,
+                doubleClickZoom: true,
+                boxZoom: true,
+                keyboard: true
             });
 
-            // Agregar capa de OpenStreetMap
+            // Agregar capa de OpenStreetMap (funciona mejor en Cuba)
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
                 attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
                 maxZoom: 19

@@ -2,249 +2,611 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="theme-color" content="#3b82f6">
-    <title>GPS Mapa - OpenStreetMap</title>
-    <meta name="description" content="Aplicación de mapa con GPS para dispositivos móviles usando OpenStreetMap">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MapaCuba - Anuncios en Cuba</title>
     
-    <!-- CSS de Leaflet -->
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     
-    <!-- jQuery -->
-    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    
+    <!-- CryptoJS for password hashing -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+    
+    <!-- js-cookie -->
+    <script src="https://cdn.jsdelivr.net/npm/js-cookie@3.0.5/dist/js.cookie.min.js"></script>
+    
+    <style>
+        #map {
+            height: 100vh;
+            width: 100vw;
+            z-index: 1;
+        }
+        
+        .leaflet-container {
+            font-family: inherit;
+        }
+        
+        /* Custom scrollbar */
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+        }
+        
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 3px;
+        }
+        
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 3px;
+        }
+        
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+        
+        /* Animations */
+        @keyframes slideUp {
+            from {
+                transform: translateY(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+        
+        .slide-up {
+            animation: slideUp 0.3s ease-out;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        
+        .fade-in {
+            animation: fadeIn 0.2s ease-out;
+        }
+    </style>
+</head>
+<body class="m-0 p-0 overflow-hidden">
+    <!-- Map Container -->
+    <div id="map"></div>
+    
+    <!-- Top Controls Bar -->
+    <div class="absolute top-4 left-4 right-4 z-10 flex justify-between items-start">
+        <!-- Logo/Title -->
+        <div class="bg-white rounded-lg shadow-lg p-3">
+            <h1 class="text-lg font-bold text-gray-800">MapaCuba</h1>
+        </div>
+        
+        <!-- User Controls -->
+        <div class="flex gap-2" id="userControls">
+            <button id="loginBtn" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg text-sm flex items-center gap-1 transition-colors">
+                <i data-lucide="user" class="w-4 h-4"></i>
+                Iniciar Sesión
+            </button>
+        </div>
+    </div>
+    
+    <!-- Floating Create Post Button (shown when map is clicked) -->
+    <div id="floatingCreateBtn" class="absolute bottom-24 left-1/2 transform -translate-x-1/2 z-10 hidden">
+        <button id="createPostAtLocation" class="bg-green-600 hover:bg-green-700 text-white px-4 py-3 rounded-full shadow-lg flex items-center gap-2 transition-all hover:scale-105 slide-up">
+            <i data-lucide="plus-circle" class="w-5 h-5"></i>
+            Crear publicación aquí
+        </button>
+    </div>
+    
+    <!-- Location Status -->
+    <div class="absolute bottom-4 left-4 z-10">
+        <div class="bg-white rounded-lg shadow-lg p-3 flex items-center gap-2">
+            <i data-lucide="navigation" class="w-4 h-4 text-green-600"></i>
+            <span class="text-sm">Ubicación activa</span>
+        </div>
+    </div>
+    
+    <!-- Posts Counter -->
+    <div class="absolute bottom-4 right-4 z-10">
+        <div class="bg-white rounded-lg shadow-lg p-3">
+            <div class="flex items-center gap-2">
+                <i data-lucide="map-pin" class="w-4 h-4 text-blue-600"></i>
+                <span class="text-sm font-medium" id="postsCounter">0 publicaciones</span>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Login/Register Modal -->
+    <div id="authModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto custom-scrollbar">
+            <div class="p-6">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-xl font-bold text-gray-800">Autenticación</h2>
+                    <button onclick="closeAuthModal()" class="text-gray-500 hover:text-gray-700">
+                        <i data-lucide="x" class="w-5 h-5"></i>
+                    </button>
+                </div>
+                
+                <!-- Tabs -->
+                <div class="flex mb-6 border-b">
+                    <button id="loginTab" class="flex-1 py-2 text-center border-b-2 border-blue-600 text-blue-600 font-medium" onclick="switchTab('login')">
+                        Iniciar Sesión
+                    </button>
+                    <button id="registerTab" class="flex-1 py-2 text-center border-b-2 border-transparent text-gray-600" onclick="switchTab('register')">
+                        Registrarse
+                    </button>
+                </div>
+                
+                <!-- Login Form -->
+                <div id="loginForm" class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Teléfono</label>
+                        <input type="tel" id="loginPhone" placeholder="+53 12345678" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Contraseña</label>
+                        <input type="password" id="loginPassword" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <button onclick="handleLogin()" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg transition-colors">
+                        Iniciar Sesión
+                    </button>
+                </div>
+                
+                <!-- Register Form -->
+                <div id="registerForm" class="space-y-4 hidden">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Nombre de Usuario</label>
+                        <input type="text" id="regUsername" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Teléfono (Cuba)</label>
+                        <input type="tel" id="regPhone" placeholder="+53 12345678" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Contraseña</label>
+                        <input type="password" id="regPassword" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <button onclick="handleRegister()" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg transition-colors">
+                        Registrarse
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Create Post Modal -->
+    <div id="postModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto custom-scrollbar">
+            <div class="p-6">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-xl font-bold text-gray-800">Crear Nueva Publicación</h2>
+                    <button onclick="closePostModal()" class="text-gray-500 hover:text-gray-700">
+                        <i data-lucide="x" class="w-5 h-5"></i>
+                    </button>
+                </div>
+                
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Título</label>
+                        <input type="text" id="postTitle" placeholder="Título del anuncio" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Descripción</label>
+                        <textarea id="postDescription" placeholder="Describe tu producto o servicio" rows="3" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Precio</label>
+                        <input type="number" id="postPrice" placeholder="0.00" step="0.01" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="handleCreatePost()" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg transition-colors">
+                            Publicar
+                        </button>
+                        <button onclick="closePostModal()" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
+                            Cancelar
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
     
     <!-- Leaflet JS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     
-    <!-- Estilos CSS -->
-    <link rel="stylesheet" href="styles.css">
-</head>
-<body>
-
-
-    <!-- Mapa fullscreen -->
-    <div id="map" class="fullscreen-map"></div>
-
-    <!-- Botón flotante de GPS -->
-    <button id="floatingGpsBtn" class="floating-btn gps-btn" title="Obtener mi ubicación">
-        <span class="floating-btn-icon">📍</span>
-    </button>
-
-    <!-- Barra de navegación inferior para rutas -->
-    <div id="routePanel" class="bottom-navigation-bar" style="display: none;">
-        <div class="route-info">
-            <div class="route-stats">
-                <div class="stat-item">
-                    <span class="stat-label">Distancia:</span>
-                    <span id="routeDistance" class="stat-value">--</span>
-                </div>
-                <div class="stat-item">
-                    <span class="stat-label">Tiempo:</span>
-                    <span id="routeTime" class="stat-value">--</span>
-                </div>
-            </div>
-        </div>
-        <div class="route-actions">
-            <button id="clearRouteBtn" class="bottom-nav-btn">
-                <span class="btn-icon">🗑️</span>
-                <span class="btn-text">Limpiar</span>
-            </button>
-        </div>
-    </div>
-
-    <!-- Indicadores flotantes -->
-    <div class="floating-indicators">
-        <span id="deviceBadge" class="floating-badge badge-secondary">💻 Escritorio</span>
-        <span id="gpsBadge" class="floating-badge badge-danger">❌ GPS Inactivo</span>
-    </div>
-
-    <!-- Modal de autenticación -->
-    <div id="authModal" class="modal" style="display: none;">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3 id="authModalTitle">🔐 Iniciar Sesión</h3>
-                <button id="closeAuthModalBtn" class="modal-close">×</button>
-            </div>
-            <div class="modal-body">
-                <form id="authForm">
-                    <!-- Formulario de inicio de sesión -->
-                    <div id="loginForm" class="auth-form">
-                        <div class="form-group">
-                            <label for="loginIdentifier">Email o Teléfono</label>
-                            <input type="text" id="loginIdentifier" name="loginIdentifier" required>
-                        </div>
+    <!-- Main Application Script -->
+    <script>
+        // Global variables
+        let map;
+        let userMarker;
+        let posts = [];
+        let currentUser = null;
+        let selectedLocation = null;
+        let postMarkers = [];
+        
+        // Initialize app
+        document.addEventListener('DOMContentLoaded', function() {
+            lucide.createIcons();
+            initializeMap();
+            loadPosts();
+            checkExistingSession();
+        });
+        
+        // Initialize map
+        function initializeMap() {
+            // Create map centered on Cuba
+            map = L.map('map').setView([23.1136, -82.3666], 13);
+            
+            // Add OpenStreetMap tiles
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            }).addTo(map);
+            
+            // Get user location
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        const { latitude, longitude } = position.coords;
+                        const userLocation = [latitude, longitude];
                         
-                        <div class="form-group">
-                            <label for="loginPassword">Contraseña</label>
-                            <input type="password" id="loginPassword" name="loginPassword" required>
-                        </div>
+                        // Remove existing user marker if any
+                        if (userMarker) {
+                            map.removeLayer(userMarker);
+                        }
+                        
+                        // Add user marker
+                        userMarker = L.marker(userLocation, {
+                            icon: L.divIcon({
+                                className: 'user-marker',
+                                html: '<div style="background: #3B82F6; width: 20px; height: 20px; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 6px rgba(0,0,0,0.3);"></div>',
+                                iconSize: [20, 20]
+                            })
+                        }).addTo(map);
+                        
+                        userMarker.bindPopup('<strong>Tu ubicación</strong><br>Lat: ' + latitude.toFixed(6) + '<br>Lng: ' + longitude.toFixed(6));
+                        
+                        map.setView(userLocation, 15);
+                    },
+                    (error) => {
+                        console.error('Error getting location:', error);
+                        // Keep default view
+                    }
+                );
+            }
+            
+            // Add click event to map
+            map.on('click', function(e) {
+                selectedLocation = e.latlng;
+                showFloatingCreateButton();
+            });
+        }
+        
+        // Show floating create button
+        function showFloatingCreateButton() {
+            const floatingBtn = document.getElementById('floatingCreateBtn');
+            floatingBtn.classList.remove('hidden');
+            floatingBtn.classList.add('fade-in');
+            
+            // Auto-hide after 5 seconds
+            setTimeout(() => {
+                if (!document.getElementById('postModal').classList.contains('hidden')) {
+                    return; // Don't hide if post modal is open
+                }
+                floatingBtn.classList.add('hidden');
+            }, 5000);
+        }
+        
+        // Hide floating create button
+        function hideFloatingCreateButton() {
+            document.getElementById('floatingCreateBtn').classList.add('hidden');
+        }
+        
+        // Create post at location button click
+        document.getElementById('createPostAtLocation').addEventListener('click', function() {
+            hideFloatingCreateButton();
+            
+            if (currentUser) {
+                // User is logged in, show post modal
+                openPostModal();
+            } else {
+                // User not logged in, show auth modal
+                openAuthModal();
+            }
+        });
+        
+        // Check existing session
+        function checkExistingSession() {
+            const userCookie = Cookies.get('user');
+            if (userCookie) {
+                try {
+                    currentUser = JSON.parse(userCookie);
+                    updateUserInterface();
+                } catch (error) {
+                    console.error('Error parsing user cookie:', error);
+                    Cookies.remove('user');
+                }
+            }
+        }
+        
+        // Update user interface
+        function updateUserInterface() {
+            const userControls = document.getElementById('userControls');
+            
+            if (currentUser) {
+                userControls.innerHTML = `
+                    <div class="bg-white rounded-lg shadow-lg p-3 flex items-center gap-2">
+                        <i data-lucide="user" class="w-4 h-4"></i>
+                        <span class="text-sm font-medium">${currentUser.username}</span>
                     </div>
+                    <button onclick="openPostModal()" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg text-sm flex items-center gap-1 transition-colors">
+                        <i data-lucide="plus" class="w-4 h-4"></i>
+                        Publicar
+                    </button>
+                    <button onclick="handleLogout()" class="border border-gray-300 hover:bg-gray-50 px-3 py-2 rounded-lg text-sm transition-colors">
+                        <i data-lucide="log-out" class="w-4 h-4"></i>
+                    </button>
+                `;
+            } else {
+                userControls.innerHTML = `
+                    <button onclick="openAuthModal()" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg text-sm flex items-center gap-1 transition-colors">
+                        <i data-lucide="user" class="w-4 h-4"></i>
+                        Iniciar Sesión
+                    </button>
+                `;
+            }
+            
+            lucide.createIcons();
+        }
+        
+        // Auth modal functions
+        function openAuthModal() {
+            document.getElementById('authModal').classList.remove('hidden');
+        }
+        
+        function closeAuthModal() {
+            document.getElementById('authModal').classList.add('hidden');
+        }
+        
+        // Switch between login and register tabs
+        function switchTab(tab) {
+            const loginTab = document.getElementById('loginTab');
+            const registerTab = document.getElementById('registerTab');
+            const loginForm = document.getElementById('loginForm');
+            const registerForm = document.getElementById('registerForm');
+            
+            if (tab === 'login') {
+                loginTab.classList.add('border-blue-600', 'text-blue-600');
+                loginTab.classList.remove('border-transparent', 'text-gray-600');
+                registerTab.classList.remove('border-blue-600', 'text-blue-600');
+                registerTab.classList.add('border-transparent', 'text-gray-600');
+                loginForm.classList.remove('hidden');
+                registerForm.classList.add('hidden');
+            } else {
+                registerTab.classList.add('border-blue-600', 'text-blue-600');
+                registerTab.classList.remove('border-transparent', 'text-gray-600');
+                loginTab.classList.remove('border-blue-600', 'text-blue-600');
+                loginTab.classList.add('border-transparent', 'text-gray-600');
+                registerForm.classList.remove('hidden');
+                loginForm.classList.add('hidden');
+            }
+        }
+        
+        // Handle login
+        async function handleLogin() {
+            const phone = document.getElementById('loginPhone').value;
+            const password = document.getElementById('loginPassword').value;
+            
+            if (!phone || !password) {
+                alert('Por favor completa todos los campos');
+                return;
+            }
+            
+            try {
+                const response = await fetch('./xampp-version/api/auth/login-v2.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ phone, password })
+                });
+                
+                if (response.ok) {
+                    const user = await response.json();
+                    currentUser = user;
+                    Cookies.set('user', JSON.stringify(user), { expires: 7 });
+                    closeAuthModal();
+                    updateUserInterface();
                     
-                    <!-- Formulario de registro -->
-                    <div id="registerForm" class="auth-form" style="display: none;">
-                        <div class="form-group">
-                            <label for="registerUsername">Nombre de Usuario</label>
-                            <input type="text" id="registerUsername" name="registerUsername" required>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label for="registerPhone">Teléfono de Cuba</label>
-                            <input type="tel" id="registerPhone" name="registerPhone" placeholder="+53 5xxxxxxx" required>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label for="registerPassword">Contraseña</label>
-                            <input type="password" id="registerPassword" name="registerPassword" required>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label for="confirmPassword">Confirmar Contraseña</label>
-                            <input type="password" id="confirmPassword" name="confirmPassword" required>
-                        </div>
+                    // If we have a selected location, open post modal
+                    if (selectedLocation) {
+                        openPostModal();
+                    }
+                } else {
+                    const error = await response.text();
+                    alert(error || 'Error al iniciar sesión');
+                }
+            } catch (error) {
+                console.error('Error during login:', error);
+                alert('Error al iniciar sesión');
+            }
+        }
+        
+        // Handle register
+        async function handleRegister() {
+            const username = document.getElementById('regUsername').value;
+            const phone = document.getElementById('regPhone').value;
+            const password = document.getElementById('regPassword').value;
+            
+            if (!username || !phone || !password) {
+                alert('Por favor completa todos los campos');
+                return;
+            }
+            
+            if (password.length < 6) {
+                alert('La contraseña debe tener al menos 6 caracteres');
+                return;
+            }
+            
+            try {
+                const response = await fetch('./xampp-version/api/auth/register-v2.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, phone, password })
+                });
+                
+                if (response.ok) {
+                    const user = await response.json();
+                    currentUser = user;
+                    Cookies.set('user', JSON.stringify(user), { expires: 7 });
+                    closeAuthModal();
+                    updateUserInterface();
+                    
+                    // If we have a selected location, open post modal
+                    if (selectedLocation) {
+                        openPostModal();
+                    }
+                } else {
+                    const error = await response.text();
+                    alert(error || 'Error al registrarse');
+                }
+            } catch (error) {
+                console.error('Error during registration:', error);
+                alert('Error al registrarse');
+            }
+        }
+        
+        // Handle logout
+        function handleLogout() {
+            currentUser = null;
+            Cookies.remove('user');
+            updateUserInterface();
+        }
+        
+        // Post modal functions
+        function openPostModal() {
+            if (!currentUser) {
+                openAuthModal();
+                return;
+            }
+            document.getElementById('postModal').classList.remove('hidden');
+        }
+        
+        function closePostModal() {
+            document.getElementById('postModal').classList.add('hidden');
+            // Clear form
+            document.getElementById('postTitle').value = '';
+            document.getElementById('postDescription').value = '';
+            document.getElementById('postPrice').value = '';
+        }
+        
+        // Handle create post
+        async function handleCreatePost() {
+            const title = document.getElementById('postTitle').value;
+            const description = document.getElementById('postDescription').value;
+            const price = document.getElementById('postPrice').value;
+            
+            if (!title || !description || !price) {
+                alert('Por favor completa todos los campos');
+                return;
+            }
+            
+            // Use selected location or user location
+            let lat, lng;
+            if (selectedLocation) {
+                lat = selectedLocation.lat;
+                lng = selectedLocation.lng;
+            } else if (userMarker) {
+                const userLatLng = userMarker.getLatLng();
+                lat = userLatLng.lat;
+                lng = userLatLng.lng;
+            } else {
+                alert('No se pudo determinar la ubicación');
+                return;
+            }
+            
+            try {
+                const response = await fetch('./xampp-version/api/posts/create-v2.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        title,
+                        description,
+                        price: parseFloat(price),
+                        lat,
+                        lng,
+                        username: currentUser.username,
+                        phone: currentUser.phone
+                    })
+                });
+                
+                if (response.ok) {
+                    const post = await response.json();
+                    posts.push(post);
+                    addPostMarker(post);
+                    updatePostsCounter();
+                    closePostModal();
+                    selectedLocation = null; // Reset selected location
+                    alert('Publicación creada exitosamente');
+                } else {
+                    const error = await response.text();
+                    alert(error || 'Error al crear la publicación');
+                }
+            } catch (error) {
+                console.error('Error creating post:', error);
+                alert('Error al crear la publicación');
+            }
+        }
+        
+        // Load posts
+        async function loadPosts() {
+            try {
+                const response = await fetch('./xampp-version/api/posts/read-v2.php');
+                if (response.ok) {
+                    posts = await response.json();
+                    posts.forEach(post => addPostMarker(post));
+                    updatePostsCounter();
+                }
+            } catch (error) {
+                console.error('Error loading posts:', error);
+            }
+        }
+        
+        // Add post marker to map
+        function addPostMarker(post) {
+            const marker = L.marker([post.lat, post.lng], {
+                icon: L.divIcon({
+                    className: 'post-marker',
+                    html: `<div style="background: #EF4444; width: 16px; height: 16px; border-radius: 50%; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3);"></div>`,
+                    iconSize: [16, 16]
+                })
+            }).addTo(map);
+            
+            const popupContent = `
+                <div class="p-2" style="min-width: 200px;">
+                    <h3 class="font-bold text-sm mb-1">${post.title}</h3>
+                    <p class="text-xs text-gray-600 mb-2">${post.description}</p>
+                    <div class="flex justify-between items-center">
+                        <span class="text-sm font-semibold text-green-600">$${post.price}</span>
+                        <span class="text-xs text-gray-500">${post.username}</span>
                     </div>
-                </form>
-            </div>
-            <div class="modal-footer">
-                <button id="switchToRegisterBtn" class="btn btn-secondary">
-                    <span class="btn-text">Registrarse</span>
-                </button>
-                <button id="switchToLoginBtn" class="btn btn-secondary" style="display: none;">
-                    <span class="btn-text">Iniciar Sesión</span>
-                </button>
-                <button id="submitAuthBtn" class="btn btn-primary">
-                    <span class="btn-text">Iniciar Sesión</span>
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Modal para confirmar destino -->
-    <div id="destinationModal" class="modal" style="display: none;">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3>🎯 Definir Destino</h3>
-                <button id="closeModalBtn" class="modal-close">×</button>
-            </div>
-            <div class="modal-body">
-                <p>¿Quieres definir este punto como tu destino y generar una ruta para llegar?</p>
-                <div class="destination-coords">
-                    <small>
-                        Lat: <span id="destLat">--</span>, Lng: <span id="destLng">--</span>
-                    </small>
                 </div>
-            </div>
-            <div class="modal-footer">
-                <button id="cancelDestinationBtn" class="btn btn-secondary">
-                    Cancelar
-                </button>
-                <button id="publishAdBtn" class="btn btn-warning">
-                    <span class="btn-icon">📢</span>
-                    Publicar Anuncio
-                </button>
-                <button id="confirmDestinationBtn" class="btn btn-primary">
-                    <span class="btn-icon">🧭</span>
-                    Generar Ruta
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Modal para crear anuncio -->
-    <div id="adModal" class="modal" style="display: none;">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3>📢 Publicar Anuncio</h3>
-                <button id="closeAdModalBtn" class="modal-close">×</button>
-            </div>
-            <div class="modal-body">
-                <form id="adForm">
-                    <div class="form-group">
-                        <label for="adTitle">Título del anuncio</label>
-                        <input type="text" id="adTitle" name="title" required maxlength="100">
-                        <small>Máximo 100 caracteres</small>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="adDescription">Descripción</label>
-                        <textarea id="adDescription" name="description" rows="4" maxlength="500"></textarea>
-                        <small>Máximo 500 caracteres</small>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="adPrice">Precio (opcional)</label>
-                        <input type="number" id="adPrice" name="price" step="0.01" min="0" placeholder="0.00">
-                        <small>Deja en blanco si no aplica</small>
-                    </div>
-                    
-                    <div class="ad-location-info">
-                        <small><strong>Ubicación:</strong> <span id="adLocationCoords">--</span></small>
-                    </div>
-                </form>
-            </div>
-            <div class="modal-footer">
-                <button id="cancelAdBtn" class="btn btn-secondary">
-                    Cancelar
-                </button>
-                <button id="saveAdBtn" class="btn btn-success">
-                    <span class="btn-icon">💾</span>
-                    Guardar Anuncio
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Modal para ver anuncio -->
-    <div id="viewAdModal" class="modal" style="display: none;">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3>📢 Detalles del Anuncio</h3>
-                <button id="closeViewAdModalBtn" class="modal-close">×</button>
-            </div>
-            <div class="modal-body">
-                <div class="ad-details">
-                    <h4 id="viewAdTitle" class="ad-title">--</h4>
-                    <div class="ad-info-grid">
-                        <div class="ad-info-item">
-                            <span class="ad-info-label">Publicado por:</span>
-                            <p id="viewAdUser" class="ad-user">--</p>
-                        </div>
-                        <div class="ad-info-item">
-                            <span class="ad-info-label">Descripción:</span>
-                            <p id="viewAdDescription" class="ad-description">--</p>
-                        </div>
-                        <div class="ad-info-item">
-                            <span class="ad-info-label">Precio:</span>
-                            <p id="viewAdPrice" class="ad-price">--</p>
-                        </div>
-                        <div class="ad-info-item">
-                            <span class="ad-info-label">Ubicación:</span>
-                            <p id="viewAdLocation" class="ad-location">--</p>
-                        </div>
-                        <div class="ad-info-item">
-                            <span class="ad-info-label">Publicado:</span>
-                            <p id="viewAdDate" class="ad-date">--</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button id="closeViewAdBtn" class="btn btn-primary">
-                    Cerrar
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Mensajes de error flotantes -->
-    <div id="errorMessage" class="floating-error" style="display: none;">
-        <p id="errorText"></p>
-        <p id="mobileErrorHint" class="mobile-hint" style="display: none;">
-            Para usar esta app, ve a Configuración → Permisos → Ubicación y permite el acceso.
-        </p>
-    </div>
-
-    <!-- JavaScript -->
-    <script src="storage.js"></script>
-    <script src="script.js"></script>
+            `;
+            
+            marker.bindPopup(popupContent);
+            postMarkers.push(marker);
+        }
+        
+        // Update posts counter
+        function updatePostsCounter() {
+            document.getElementById('postsCounter').textContent = `${posts.length} publicaciones`;
+        }
+        
+        // Login button click
+        document.getElementById('loginBtn').addEventListener('click', openAuthModal);
+    </script>
 </body>
 </html>

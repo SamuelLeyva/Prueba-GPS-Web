@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>API Test - MapaCuba</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ccc; }
+        .result { margin: 10px 0; padding: 10px; }
+        .success { background-color: #d4edda; border: 1px solid #c3e6cb; }
+        .error { background-color: #f8d7da; border: 1px solid #f5c6cb; }
+        input, button { padding: 5px; margin: 5px; }
+    </style>
+</head>
+<body>
+    <h1>API Test - MapaCuba</h1>
+    
+    <div class="test-section">
+        <h2>Test Registration</h2>
+        <input type="text" id="regUsername" placeholder="Username" value="testuser">
+        <input type="tel" id="regPhone" placeholder="+53 12345678" value="+53 51234567">
+        <input type="password" id="regPassword" placeholder="Password" value="123456">
+        <button onclick="testRegister()">Register</button>
+        <div id="regResult" class="result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Test Login</h2>
+        <input type="tel" id="loginPhone" placeholder="+53 12345678" value="+53 51234567">
+        <input type="password" id="loginPassword" placeholder="Password" value="123456">
+        <button onclick="testLogin()">Login</button>
+        <div id="loginResult" class="result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Test Posts</h2>
+        <button onclick="testReadPosts()">Read Posts</button>
+        <div id="postsResult" class="result"></div>
+    </div>
+
+    <script>
+        async function testRegister() {
+            const username = document.getElementById('regUsername').value;
+            const phone = document.getElementById('regPhone').value;
+            const password = document.getElementById('regPassword').value;
+            
+            const resultDiv = document.getElementById('regResult');
+            
+            try {
+                const response = await fetch('./xampp-version/api/auth/register-v2.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, phone, password })
+                });
+                
+                const data = await response.text();
+                resultDiv.className = 'result ' + (response.ok ? 'success' : 'error');
+                resultDiv.innerHTML = `
+                    <strong>Status:</strong> ${response.status}<br>
+                    <strong>Response:</strong><br>
+                    <pre>${data}</pre>
+                `;
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = `<strong>Error:</strong> ${error.message}`;
+            }
+        }
+        
+        async function testLogin() {
+            const phone = document.getElementById('loginPhone').value;
+            const password = document.getElementById('loginPassword').value;
+            
+            const resultDiv = document.getElementById('loginResult');
+            
+            try {
+                const response = await fetch('./xampp-version/api/auth/login-v2.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ phone, password })
+                });
+                
+                const data = await response.text();
+                resultDiv.className = 'result ' + (response.ok ? 'success' : 'error');
+                resultDiv.innerHTML = `
+                    <strong>Status:</strong> ${response.status}<br>
+                    <strong>Response:</strong><br>
+                    <pre>${data}</pre>
+                `;
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = `<strong>Error:</strong> ${error.message}`;
+            }
+        }
+        
+        async function testReadPosts() {
+            const resultDiv = document.getElementById('postsResult');
+            
+            try {
+                const response = await fetch('./xampp-version/api/posts/read-v2.php');
+                const data = await response.text();
+                resultDiv.className = 'result ' + (response.ok ? 'success' : 'error');
+                resultDiv.innerHTML = `
+                    <strong>Status:</strong> ${response.status}<br>
+                    <strong>Response:</strong><br>
+                    <pre>${data}</pre>
+                `;
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = `<strong>Error:</strong> ${error.message}`;
+            }
+        }
+    </script>
+</body>
+</html>

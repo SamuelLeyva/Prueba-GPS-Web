@@ -2,611 +2,117 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MapaCuba - Anuncios en Cuba</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Catálogo Geolocalizado</title>
     
-    <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    
-    <!-- Leaflet CSS -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    
-    <!-- Lucide Icons -->
-    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
-    
-    <!-- CryptoJS for password hashing -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
-    
-    <!-- js-cookie -->
-    <script src="https://cdn.jsdelivr.net/npm/js-cookie@3.0.5/dist/js.cookie.min.js"></script>
-    
-    <style>
-        #map {
-            height: 100vh;
-            width: 100vw;
-            z-index: 1;
-        }
-        
-        .leaflet-container {
-            font-family: inherit;
-        }
-        
-        /* Custom scrollbar */
-        .custom-scrollbar::-webkit-scrollbar {
-            width: 6px;
-        }
-        
-        .custom-scrollbar::-webkit-scrollbar-track {
-            background: #f1f1f1;
-            border-radius: 3px;
-        }
-        
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-            background: #888;
-            border-radius: 3px;
-        }
-        
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-            background: #555;
-        }
-        
-        /* Animations */
-        @keyframes slideUp {
-            from {
-                transform: translateY(100%);
-                opacity: 0;
-            }
-            to {
-                transform: translateY(0);
-                opacity: 1;
-            }
-        }
-        
-        .slide-up {
-            animation: slideUp 0.3s ease-out;
-        }
-        
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
-        }
-        
-        .fade-in {
-            animation: fadeIn 0.2s ease-out;
-        }
-    </style>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+    <link rel="stylesheet" href="style.css">
 </head>
-<body class="m-0 p-0 overflow-hidden">
-    <!-- Map Container -->
+<body>
+
     <div id="map"></div>
     
-    <!-- Top Controls Bar -->
-    <div class="absolute top-4 left-4 right-4 z-10 flex justify-between items-start">
-        <!-- Logo/Title -->
-        <div class="bg-white rounded-lg shadow-lg p-3">
-            <h1 class="text-lg font-bold text-gray-800">MapaCuba</h1>
+    <button id="user-button" class="floating-control" title="Iniciar Sesión / Registro">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+        </svg>
+    </button>
+
+    <button id="gps-button" class="floating-control" title="Centrar en mi ubicación">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 8C9.79 8 8 9.79 8 12s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4zm8.94 3c-.46-4.1-3.77-7.41-7.87-7.87V2h-1.99v1.13c-4.1.46-7.41 3.77-7.87 7.87H2v1.99h1.13c.46 4.1 3.77 7.41 7.87 7.87V22h1.99v-1.13c4.1-.46 7.41-3.77 7.87-7.87H22v-1.99h-1.06zm-1.81 0h1.81c.08.31.14.63.17.96h-1.91c-.04-.33-.1-.65-.17-.96zm-16.26 0c-.08.31-.14.63-.17.96h1.91c.04-.33.1-.65.17-.96h-1.81zM12 18c-3.31 0-6-2.69-6-6s2.69-6 6-6 6 2.69 6 6-2.69 6-6 6z"/>
+        </svg>
+    </button>
+
+    <div id="auth-modal" class="modal">
+    
+        <div class="modal-content">
+            <span class="close-modal">&times;</span>
+            
+            <div class="auth-tabs">
+                <button class="tab-btn active" data-target="login-form">Iniciar Sesión</button>
+                <button class="tab-btn" data-target="register-form">Registrarse</button>
+            </div>
+
+            <form id="login-form" class="auth-form active">
+                <h2>Bienvenido</h2>
+                <div class="input-group">
+                    <input type="email" name="email" placeholder="Correo electrónico" required>
+                </div>
+                <div class="input-group">
+                    <input type="password" name="password" placeholder="Contraseña" required>
+                </div>
+                <button type="submit" class="submit-btn">Entrar</button>
+            </form>
+
+            <form id="register-form" class="auth-form">
+                <h2>Crear Cuenta</h2>
+               <div class="input-group relative-container">
+                    <input type="text" name="username" id="reg-username" placeholder="Nombre de usuario" autocomplete="off" required>
+                    <div id="username-feedback" class="popover-feedback"></div>
+                </div>
+                <div class="input-group">
+                    <input type="email" name="email" placeholder="Correo electrónico" required>
+                </div>
+                <div class="input-group">
+                    <input type="password" name="password" placeholder="Contraseña" required>
+                </div>
+                <div class="input-group">
+                    <input type="password" name="confirm_password" placeholder="Confirmar contraseña" required>
+                </div>
+                <button type="submit" class="submit-btn register-btn">Registrarse</button>
+            </form>
+            
+            <div id="auth-message"></div>
         </div>
-        
-        <!-- User Controls -->
-        <div class="flex gap-2" id="userControls">
-            <button id="loginBtn" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg text-sm flex items-center gap-1 transition-colors">
-                <i data-lucide="user" class="w-4 h-4"></i>
-                Iniciar Sesión
+    </div>
+
+    <div id="create-ad-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-modal close-ad-modal">&times;</span>
+            <form id="ad-form" class="auth-form active">
+                <h2>Nuevo Anuncio</h2>
+                <input type="hidden" name="lat" id="ad-lat">
+                <input type="hidden" name="lng" id="ad-lng">
+
+                <div class="input-group">
+                    <input type="text" name="title" placeholder="Título (ej: Vendo Bici)" required>
+                </div>
+                <div class="input-group">
+                    <textarea name="description" placeholder="Descripción breve..." rows="3" style="width:100%; padding:10px; border:1px solid #ccc; border-radius:6px; font-family:sans-serif;" required></textarea>
+                </div>
+                <div class="input-group">
+                    <input type="number" name="price" placeholder="Precio" step="0.01" required>
+                </div>
+                <button type="submit" class="submit-btn" style="background-color: #EA4335;">Publicar Anuncio</button>
+            </form>
+        </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <script src="script.js"></script>
+    <div id="profile-view" class="profile-container hidden">
+        <div class="profile-header-mobile">
+            <button id="close-profile-mobile" class="back-btn">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="24" height="24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
             </button>
+            <h2>Mi Perfil</h2>
         </div>
-    </div>
-    
-    <!-- Floating Create Post Button (shown when map is clicked) -->
-    <div id="floatingCreateBtn" class="absolute bottom-24 left-1/2 transform -translate-x-1/2 z-10 hidden">
-        <button id="createPostAtLocation" class="bg-green-600 hover:bg-green-700 text-white px-4 py-3 rounded-full shadow-lg flex items-center gap-2 transition-all hover:scale-105 slide-up">
-            <i data-lucide="plus-circle" class="w-5 h-5"></i>
-            Crear publicación aquí
-        </button>
-    </div>
-    
-    <!-- Location Status -->
-    <div class="absolute bottom-4 left-4 z-10">
-        <div class="bg-white rounded-lg shadow-lg p-3 flex items-center gap-2">
-            <i data-lucide="navigation" class="w-4 h-4 text-green-600"></i>
-            <span class="text-sm">Ubicación activa</span>
-        </div>
-    </div>
-    
-    <!-- Posts Counter -->
-    <div class="absolute bottom-4 right-4 z-10">
-        <div class="bg-white rounded-lg shadow-lg p-3">
-            <div class="flex items-center gap-2">
-                <i data-lucide="map-pin" class="w-4 h-4 text-blue-600"></i>
-                <span class="text-sm font-medium" id="postsCounter">0 publicaciones</span>
+
+        <div class="profile-content">
+            <span class="close-profile-pc">&times;</span>
+            <div class="profile-avatar">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#ccc" width="80" height="80"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+            </div>
+            <h3 id="display-username">Usuario</h3>
+            <p id="display-email">correo@ejemplo.com</p>
+            
+            <div class="profile-actions">
+                <button class="edit-btn">Editar Datos</button>
+                <button id="logout-btn" class="logout-btn">Cerrar Sesión</button>
             </div>
         </div>
     </div>
-    
-    <!-- Login/Register Modal -->
-    <div id="authModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
-        <div class="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto custom-scrollbar">
-            <div class="p-6">
-                <div class="flex justify-between items-center mb-6">
-                    <h2 class="text-xl font-bold text-gray-800">Autenticación</h2>
-                    <button onclick="closeAuthModal()" class="text-gray-500 hover:text-gray-700">
-                        <i data-lucide="x" class="w-5 h-5"></i>
-                    </button>
-                </div>
-                
-                <!-- Tabs -->
-                <div class="flex mb-6 border-b">
-                    <button id="loginTab" class="flex-1 py-2 text-center border-b-2 border-blue-600 text-blue-600 font-medium" onclick="switchTab('login')">
-                        Iniciar Sesión
-                    </button>
-                    <button id="registerTab" class="flex-1 py-2 text-center border-b-2 border-transparent text-gray-600" onclick="switchTab('register')">
-                        Registrarse
-                    </button>
-                </div>
-                
-                <!-- Login Form -->
-                <div id="loginForm" class="space-y-4">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Teléfono</label>
-                        <input type="tel" id="loginPhone" placeholder="+53 12345678" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Contraseña</label>
-                        <input type="password" id="loginPassword" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    </div>
-                    <button onclick="handleLogin()" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg transition-colors">
-                        Iniciar Sesión
-                    </button>
-                </div>
-                
-                <!-- Register Form -->
-                <div id="registerForm" class="space-y-4 hidden">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Nombre de Usuario</label>
-                        <input type="text" id="regUsername" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Teléfono (Cuba)</label>
-                        <input type="tel" id="regPhone" placeholder="+53 12345678" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Contraseña</label>
-                        <input type="password" id="regPassword" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    </div>
-                    <button onclick="handleRegister()" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg transition-colors">
-                        Registrarse
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-    
-    <!-- Create Post Modal -->
-    <div id="postModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
-        <div class="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto custom-scrollbar">
-            <div class="p-6">
-                <div class="flex justify-between items-center mb-6">
-                    <h2 class="text-xl font-bold text-gray-800">Crear Nueva Publicación</h2>
-                    <button onclick="closePostModal()" class="text-gray-500 hover:text-gray-700">
-                        <i data-lucide="x" class="w-5 h-5"></i>
-                    </button>
-                </div>
-                
-                <div class="space-y-4">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Título</label>
-                        <input type="text" id="postTitle" placeholder="Título del anuncio" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Descripción</label>
-                        <textarea id="postDescription" placeholder="Describe tu producto o servicio" rows="3" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Precio</label>
-                        <input type="number" id="postPrice" placeholder="0.00" step="0.01" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    </div>
-                    <div class="flex gap-2">
-                        <button onclick="handleCreatePost()" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg transition-colors">
-                            Publicar
-                        </button>
-                        <button onclick="closePostModal()" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
-                            Cancelar
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-    
-    <!-- Leaflet JS -->
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    
-    <!-- Main Application Script -->
-    <script>
-        // Global variables
-        let map;
-        let userMarker;
-        let posts = [];
-        let currentUser = null;
-        let selectedLocation = null;
-        let postMarkers = [];
-        
-        // Initialize app
-        document.addEventListener('DOMContentLoaded', function() {
-            lucide.createIcons();
-            initializeMap();
-            loadPosts();
-            checkExistingSession();
-        });
-        
-        // Initialize map
-        function initializeMap() {
-            // Create map centered on Cuba
-            map = L.map('map').setView([23.1136, -82.3666], 13);
-            
-            // Add OpenStreetMap tiles
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-            }).addTo(map);
-            
-            // Get user location
-            if (navigator.geolocation) {
-                navigator.geolocation.getCurrentPosition(
-                    (position) => {
-                        const { latitude, longitude } = position.coords;
-                        const userLocation = [latitude, longitude];
-                        
-                        // Remove existing user marker if any
-                        if (userMarker) {
-                            map.removeLayer(userMarker);
-                        }
-                        
-                        // Add user marker
-                        userMarker = L.marker(userLocation, {
-                            icon: L.divIcon({
-                                className: 'user-marker',
-                                html: '<div style="background: #3B82F6; width: 20px; height: 20px; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 6px rgba(0,0,0,0.3);"></div>',
-                                iconSize: [20, 20]
-                            })
-                        }).addTo(map);
-                        
-                        userMarker.bindPopup('<strong>Tu ubicación</strong><br>Lat: ' + latitude.toFixed(6) + '<br>Lng: ' + longitude.toFixed(6));
-                        
-                        map.setView(userLocation, 15);
-                    },
-                    (error) => {
-                        console.error('Error getting location:', error);
-                        // Keep default view
-                    }
-                );
-            }
-            
-            // Add click event to map
-            map.on('click', function(e) {
-                selectedLocation = e.latlng;
-                showFloatingCreateButton();
-            });
-        }
-        
-        // Show floating create button
-        function showFloatingCreateButton() {
-            const floatingBtn = document.getElementById('floatingCreateBtn');
-            floatingBtn.classList.remove('hidden');
-            floatingBtn.classList.add('fade-in');
-            
-            // Auto-hide after 5 seconds
-            setTimeout(() => {
-                if (!document.getElementById('postModal').classList.contains('hidden')) {
-                    return; // Don't hide if post modal is open
-                }
-                floatingBtn.classList.add('hidden');
-            }, 5000);
-        }
-        
-        // Hide floating create button
-        function hideFloatingCreateButton() {
-            document.getElementById('floatingCreateBtn').classList.add('hidden');
-        }
-        
-        // Create post at location button click
-        document.getElementById('createPostAtLocation').addEventListener('click', function() {
-            hideFloatingCreateButton();
-            
-            if (currentUser) {
-                // User is logged in, show post modal
-                openPostModal();
-            } else {
-                // User not logged in, show auth modal
-                openAuthModal();
-            }
-        });
-        
-        // Check existing session
-        function checkExistingSession() {
-            const userCookie = Cookies.get('user');
-            if (userCookie) {
-                try {
-                    currentUser = JSON.parse(userCookie);
-                    updateUserInterface();
-                } catch (error) {
-                    console.error('Error parsing user cookie:', error);
-                    Cookies.remove('user');
-                }
-            }
-        }
-        
-        // Update user interface
-        function updateUserInterface() {
-            const userControls = document.getElementById('userControls');
-            
-            if (currentUser) {
-                userControls.innerHTML = `
-                    <div class="bg-white rounded-lg shadow-lg p-3 flex items-center gap-2">
-                        <i data-lucide="user" class="w-4 h-4"></i>
-                        <span class="text-sm font-medium">${currentUser.username}</span>
-                    </div>
-                    <button onclick="openPostModal()" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg text-sm flex items-center gap-1 transition-colors">
-                        <i data-lucide="plus" class="w-4 h-4"></i>
-                        Publicar
-                    </button>
-                    <button onclick="handleLogout()" class="border border-gray-300 hover:bg-gray-50 px-3 py-2 rounded-lg text-sm transition-colors">
-                        <i data-lucide="log-out" class="w-4 h-4"></i>
-                    </button>
-                `;
-            } else {
-                userControls.innerHTML = `
-                    <button onclick="openAuthModal()" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg text-sm flex items-center gap-1 transition-colors">
-                        <i data-lucide="user" class="w-4 h-4"></i>
-                        Iniciar Sesión
-                    </button>
-                `;
-            }
-            
-            lucide.createIcons();
-        }
-        
-        // Auth modal functions
-        function openAuthModal() {
-            document.getElementById('authModal').classList.remove('hidden');
-        }
-        
-        function closeAuthModal() {
-            document.getElementById('authModal').classList.add('hidden');
-        }
-        
-        // Switch between login and register tabs
-        function switchTab(tab) {
-            const loginTab = document.getElementById('loginTab');
-            const registerTab = document.getElementById('registerTab');
-            const loginForm = document.getElementById('loginForm');
-            const registerForm = document.getElementById('registerForm');
-            
-            if (tab === 'login') {
-                loginTab.classList.add('border-blue-600', 'text-blue-600');
-                loginTab.classList.remove('border-transparent', 'text-gray-600');
-                registerTab.classList.remove('border-blue-600', 'text-blue-600');
-                registerTab.classList.add('border-transparent', 'text-gray-600');
-                loginForm.classList.remove('hidden');
-                registerForm.classList.add('hidden');
-            } else {
-                registerTab.classList.add('border-blue-600', 'text-blue-600');
-                registerTab.classList.remove('border-transparent', 'text-gray-600');
-                loginTab.classList.remove('border-blue-600', 'text-blue-600');
-                loginTab.classList.add('border-transparent', 'text-gray-600');
-                registerForm.classList.remove('hidden');
-                loginForm.classList.add('hidden');
-            }
-        }
-        
-        // Handle login
-        async function handleLogin() {
-            const phone = document.getElementById('loginPhone').value;
-            const password = document.getElementById('loginPassword').value;
-            
-            if (!phone || !password) {
-                alert('Por favor completa todos los campos');
-                return;
-            }
-            
-            try {
-                const response = await fetch('./xampp-version/api/auth/login-v2.php', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ phone, password })
-                });
-                
-                if (response.ok) {
-                    const user = await response.json();
-                    currentUser = user;
-                    Cookies.set('user', JSON.stringify(user), { expires: 7 });
-                    closeAuthModal();
-                    updateUserInterface();
-                    
-                    // If we have a selected location, open post modal
-                    if (selectedLocation) {
-                        openPostModal();
-                    }
-                } else {
-                    const error = await response.text();
-                    alert(error || 'Error al iniciar sesión');
-                }
-            } catch (error) {
-                console.error('Error during login:', error);
-                alert('Error al iniciar sesión');
-            }
-        }
-        
-        // Handle register
-        async function handleRegister() {
-            const username = document.getElementById('regUsername').value;
-            const phone = document.getElementById('regPhone').value;
-            const password = document.getElementById('regPassword').value;
-            
-            if (!username || !phone || !password) {
-                alert('Por favor completa todos los campos');
-                return;
-            }
-            
-            if (password.length < 6) {
-                alert('La contraseña debe tener al menos 6 caracteres');
-                return;
-            }
-            
-            try {
-                const response = await fetch('./xampp-version/api/auth/register-v2.php', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username, phone, password })
-                });
-                
-                if (response.ok) {
-                    const user = await response.json();
-                    currentUser = user;
-                    Cookies.set('user', JSON.stringify(user), { expires: 7 });
-                    closeAuthModal();
-                    updateUserInterface();
-                    
-                    // If we have a selected location, open post modal
-                    if (selectedLocation) {
-                        openPostModal();
-                    }
-                } else {
-                    const error = await response.text();
-                    alert(error || 'Error al registrarse');
-                }
-            } catch (error) {
-                console.error('Error during registration:', error);
-                alert('Error al registrarse');
-            }
-        }
-        
-        // Handle logout
-        function handleLogout() {
-            currentUser = null;
-            Cookies.remove('user');
-            updateUserInterface();
-        }
-        
-        // Post modal functions
-        function openPostModal() {
-            if (!currentUser) {
-                openAuthModal();
-                return;
-            }
-            document.getElementById('postModal').classList.remove('hidden');
-        }
-        
-        function closePostModal() {
-            document.getElementById('postModal').classList.add('hidden');
-            // Clear form
-            document.getElementById('postTitle').value = '';
-            document.getElementById('postDescription').value = '';
-            document.getElementById('postPrice').value = '';
-        }
-        
-        // Handle create post
-        async function handleCreatePost() {
-            const title = document.getElementById('postTitle').value;
-            const description = document.getElementById('postDescription').value;
-            const price = document.getElementById('postPrice').value;
-            
-            if (!title || !description || !price) {
-                alert('Por favor completa todos los campos');
-                return;
-            }
-            
-            // Use selected location or user location
-            let lat, lng;
-            if (selectedLocation) {
-                lat = selectedLocation.lat;
-                lng = selectedLocation.lng;
-            } else if (userMarker) {
-                const userLatLng = userMarker.getLatLng();
-                lat = userLatLng.lat;
-                lng = userLatLng.lng;
-            } else {
-                alert('No se pudo determinar la ubicación');
-                return;
-            }
-            
-            try {
-                const response = await fetch('./xampp-version/api/posts/create-v2.php', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        title,
-                        description,
-                        price: parseFloat(price),
-                        lat,
-                        lng,
-                        username: currentUser.username,
-                        phone: currentUser.phone
-                    })
-                });
-                
-                if (response.ok) {
-                    const post = await response.json();
-                    posts.push(post);
-                    addPostMarker(post);
-                    updatePostsCounter();
-                    closePostModal();
-                    selectedLocation = null; // Reset selected location
-                    alert('Publicación creada exitosamente');
-                } else {
-                    const error = await response.text();
-                    alert(error || 'Error al crear la publicación');
-                }
-            } catch (error) {
-                console.error('Error creating post:', error);
-                alert('Error al crear la publicación');
-            }
-        }
-        
-        // Load posts
-        async function loadPosts() {
-            try {
-                const response = await fetch('./xampp-version/api/posts/read-v2.php');
-                if (response.ok) {
-                    posts = await response.json();
-                    posts.forEach(post => addPostMarker(post));
-                    updatePostsCounter();
-                }
-            } catch (error) {
-                console.error('Error loading posts:', error);
-            }
-        }
-        
-        // Add post marker to map
-        function addPostMarker(post) {
-            const marker = L.marker([post.lat, post.lng], {
-                icon: L.divIcon({
-                    className: 'post-marker',
-                    html: `<div style="background: #EF4444; width: 16px; height: 16px; border-radius: 50%; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3);"></div>`,
-                    iconSize: [16, 16]
-                })
-            }).addTo(map);
-            
-            const popupContent = `
-                <div class="p-2" style="min-width: 200px;">
-                    <h3 class="font-bold text-sm mb-1">${post.title}</h3>
-                    <p class="text-xs text-gray-600 mb-2">${post.description}</p>
-                    <div class="flex justify-between items-center">
-                        <span class="text-sm font-semibold text-green-600">$${post.price}</span>
-                        <span class="text-xs text-gray-500">${post.username}</span>
-                    </div>
-                </div>
-            `;
-            
-            marker.bindPopup(popupContent);
-            postMarkers.push(marker);
-        }
-        
-        // Update posts counter
-        function updatePostsCounter() {
-            document.getElementById('postsCounter').textContent = `${posts.length} publicaciones`;
-        }
-        
-        // Login button click
-        document.getElementById('loginBtn').addEventListener('click', openAuthModal);
-    </script>
 </body>
 </html>
